@@ -79,5 +79,5 @@ def test_apply_transformations_pipeline(
 
     assert result.exists()
     with Image.open(result) as img:
+        assert img.mode == "L"
         assert img.size == (50, 100)
-        assert img.mode == "RGB"

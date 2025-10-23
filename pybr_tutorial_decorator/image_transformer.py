@@ -108,12 +108,18 @@ def apply_transformations(
 ) -> Path:
     """Apply one or more transformations to the image and persist the result."""
 
-    destination_path = destination_path or _default_output_path(source_path)
+    if watermark_text or rotate_degrees:
+        raise ValueError("Not implemented yet 🙁")
+
 
     with Image.open(source_path) as img_file:
         image = img_file.convert("RGB")
-    image = BlackAndWhiteTransformer().apply(image)
 
+    if to_black_and_white:
+        transformer = BlackAndWhiteTransformer()
+        image = transformer.apply(image)
+
+    destination_path = destination_path or _default_output_path(source_path)
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     image.save(destination_path)
 
