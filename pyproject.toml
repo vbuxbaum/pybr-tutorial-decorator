@@ -1,0 +1,18 @@
+[project]
+name = "pybr-tutorial-decorator"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "typer>=0.12,<1.0",
+    "pillow>=10,<11",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+]
+
+[project.scripts]
+pybr-image = "pybr_tutorial_decorator.cli:main"
