@@ -2,6 +2,8 @@
 
 CLI educacional que demonstra como evoluir um código até chegar em um pipeline de transformações de imagem usando o padrão Decorator.
 
+👉 [Material de apoio](https://drive.google.com/file/d/1NzsLY7x-a0KEqplBHBbR6UxQ1CybaXPV/view?usp=drive_link)
+
 ## Funcionalidades
 
 - Converter uma imagem para preto e branco (`--black-white`)
