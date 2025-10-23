@@ -15,6 +15,7 @@ Crie ou atualize o ambiente virtual (Python 3.13+) e instale as dependências de
 
 ```bash
 uv sync --extra dev
+uv pip install -e ".[dev]"
 ```
 
 Caso prefira `venv` manual:
@@ -22,7 +23,7 @@ Caso prefira `venv` manual:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e .[dev]
+pip install -e ".[dev]"
 ```
 
 Após a instalação, o comando `pybr-image` fica disponível.
