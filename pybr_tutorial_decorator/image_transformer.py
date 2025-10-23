@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 
+from abc import ABC
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -11,36 +12,61 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 RotationDirection = Literal["left", "right"]
 
 
-class BlackAndWhiteTransformer:
+class TransformerInterface(ABC):
+    def apply(self, image: Image.Image) -> Image.Image:
+        raise NotImplementedError
+
+
+class TransformerDecorator(TransformerInterface):
+    _transformer: TransformerInterface
+
+    def __init__(self, transformer: TransformerInterface) -> None:
+        self._transformer = transformer
+
+
+class RGBTransformer(TransformerInterface):
+    def apply(self, image: Image.Image) -> Image.Image:
+        return image.convert("RGB")
+
+
+class BlackAndWhiteTransformer(TransformerDecorator):
     def apply(self, image: Image.Image) -> Image.Image:
         """Return a black and white copy of the provided image."""
+        image = self._transformer.apply(image)
+
         grayscale = ImageOps.grayscale(image)
         return ImageOps.autocontrast(grayscale)
 
 
-class WatermarkTransformer:
-    def apply(self, image: Image.Image, text: str) -> Image.Image:
+class WatermarkTransformer(TransformerDecorator):
+    def __init__(self, transformer: TransformerInterface, text: str) -> None:
+        super().__init__(transformer)
+        self._text = text
+
+    def apply(self, image: Image.Image) -> Image.Image:
         """Return a copy of the image with a large semi-transparent watermark."""
-        if not text:
+        if not self._text:
             raise ValueError("Watermark text cannot be empty.")
+
+        image = self._transformer.apply(image)
 
         base = image.convert("RGBA")
         watermark_layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(watermark_layer)
-        font = self._load_watermark_font(text, base.size)
-        text_bbox = draw.textbbox((0, 0), text, font=font)
+        font = self._load_watermark_font(base.size)
+        text_bbox = draw.textbbox((0, 0), self._text, font=font)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
 
         x = (base.width - text_width) // 2
         y = (base.height - text_height) // 2
-        draw.text((x, y), text, font=font, fill=(255, 255, 255, 120))
+        draw.text((x, y), self._text, font=font, fill=(255, 255, 255, 120))
 
         combined = Image.alpha_composite(base, watermark_layer)
         return combined.convert("RGB")
 
     def _load_watermark_font(
-        self, text: str, image_size: tuple[int, int]
+        self, image_size: tuple[int, int]
     ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         """Return a large font sized to roughly half of the longest image dimension."""
         width, height = image_size
@@ -56,7 +82,7 @@ class WatermarkTransformer:
         for font_name in candidates:
             try:
                 font = ImageFont.truetype(font_name, size=base_size)
-                bbox = font.getbbox(text)
+                bbox = font.getbbox(self._text)
                 text_width = bbox[2] - bbox[0]
                 text_height = bbox[3] - bbox[1]
 
@@ -80,15 +106,25 @@ class WatermarkTransformer:
         return ImageFont.load_default()
 
 
-class RotationTransformer:
-    def apply(
-        self, image: Image.Image, degrees: float, direction: RotationDirection
-    ) -> Image.Image:
+class RotationTransformer(TransformerDecorator):
+    def __init__(
+        self,
+        transformer: TransformerInterface,
+        degrees: float,
+        direction: RotationDirection,
+    ) -> None:
+        super().__init__(transformer)
+        self._degrees = degrees
+        self._direction = direction
+
+    def apply(self, image: Image.Image) -> Image.Image:
         """Rotate the provided image by the given amount."""
-        if degrees < 0:
+        if self._degrees < 0:
             raise ValueError("Degrees must be positive.")
 
-        angle = degrees if direction == "left" else -degrees
+        image = self._transformer.apply(image)
+
+        angle = self._degrees if self._direction == "left" else -self._degrees
         return image.rotate(angle, expand=True)
 
 
@@ -108,16 +144,20 @@ def apply_transformations(
 ) -> Path:
     """Apply one or more transformations to the image and persist the result."""
 
-    if watermark_text or rotate_degrees:
-        raise ValueError("Not implemented yet 🙁")
+    transformer = RGBTransformer()
 
+    if watermark_text:
+        transformer = WatermarkTransformer(transformer, watermark_text)
+
+    if rotate_degrees:
+        transformer = RotationTransformer(
+            transformer, rotate_degrees, rotate_direction
+        )
+    if to_black_and_white:
+        transformer = BlackAndWhiteTransformer(transformer)
 
     with Image.open(source_path) as img_file:
-        image = img_file.convert("RGB")
-
-    if to_black_and_white:
-        transformer = BlackAndWhiteTransformer()
-        image = transformer.apply(image)
+        image = transformer.apply(img_file)
 
     destination_path = destination_path or _default_output_path(source_path)
     destination_path.parent.mkdir(parents=True, exist_ok=True)

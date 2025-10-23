@@ -5,6 +5,7 @@ from pathlib import Path
 from PIL import Image, ImageChops
 
 from pybr_tutorial_decorator.image_transformer import (
+    RGBTransformer,
     WatermarkTransformer,
     BlackAndWhiteTransformer,
     RotationTransformer,
@@ -15,10 +16,13 @@ from pybr_tutorial_decorator.image_transformer import (
 def test_black_and_white_transformer(
     sample_image: Path, tmp_path: Path
 ) -> None:
-    with Image.open(sample_image) as img_file:
-        img = img_file.convert("RGB")
 
-    transformed = BlackAndWhiteTransformer().apply(img)
+    transformer = RGBTransformer()
+    transformer = BlackAndWhiteTransformer(transformer)
+
+    with Image.open(sample_image) as img_file:
+        transformed = transformer.apply(img_file)
+
     assert transformed.mode == "L"
 
     destination = tmp_path / "bw.jpg"
@@ -27,9 +31,13 @@ def test_black_and_white_transformer(
 
 
 def test_watermark_transformer_changes_image(sample_image: Path) -> None:
+
+    transformer = RGBTransformer()
+    transformer = WatermarkTransformer(transformer, "PyBR")
+
     with Image.open(sample_image) as img_file:
         img = img_file.convert("RGB")
-    watermarked = WatermarkTransformer().apply(img, "PyBR")
+        watermarked = transformer.apply(img)
 
     difference = ImageChops.difference(img, watermarked)
     assert difference.getbbox() is not None
@@ -39,10 +47,13 @@ def test_rotation_transformer_expands_canvas(
     sample_image: Path, tmp_path: Path
 ) -> None:
     destination = tmp_path / "rotated.jpg"
-    with Image.open(sample_image) as img_file:
-        img = img_file.convert("RGB")
 
-    rotated = RotationTransformer().apply(img, degrees=90, direction="left")
+    transformer = RGBTransformer()
+    transformer = RotationTransformer(transformer, degrees=90, direction="left")
+
+    with Image.open(sample_image) as img_file:
+        rotated = transformer.apply(img_file)
+
     assert rotated.size == (50, 100)
 
     rotated.save(destination)
@@ -51,11 +62,12 @@ def test_rotation_transformer_expands_canvas(
 def test_combine_transformations(
     sample_image: Path, tmp_path: Path
 ) -> None:
-    with Image.open(sample_image) as img_file:
-        img = img_file.convert("RGB")
+    transformer = RGBTransformer()
+    transformer = RotationTransformer(transformer, degrees=90, direction="left")
+    transformer = BlackAndWhiteTransformer(transformer)
 
-    transformed = RotationTransformer().apply(img, degrees=90, direction="left")
-    transformed = BlackAndWhiteTransformer().apply(transformed)
+    with Image.open(sample_image) as img_file:
+        transformed = transformer.apply(img_file)
 
     assert transformed.mode == "L"
     assert transformed.size == (50, 100)
