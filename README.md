@@ -16,6 +16,7 @@ Crie ou atualize o ambiente virtual (Python 3.13+) e instale as dependências de
 ```bash
 uv sync --extra dev
 uv pip install -e ".[dev]"
+source .venv/bin/activate
 ```
 
 Caso prefira `venv` manual:
